@@ -3,7 +3,7 @@
 // TODO: actually finish the top-level module xd
 module final_ ();
 
-
+/*
 	datapath(
 	);
 	
@@ -11,7 +11,7 @@ module final_ ();
 	);
 	
 	collision (
-	);
+	 */
 	
 endmodule
 
@@ -215,20 +215,16 @@ endmodule
 */
 
 
-module datapath(clock, reset, state, x, y, colour):
+module datapath(clock, reset, state, x, y, colour);
 	input clock;
 	input reset;
-	input [2:0] state;
+	input [2:0] game_state;
 	
-	wire enable;
-	
-	reg [11:0] counter
+	reg [11:0] counter;
+	reg [2:0]  screen_state;
 	
 	output reg [7:0] x;
 	output reg [7:0] y;
-	
-	draw_char(enable, x, y, counter, )
-
 
 	localparam	S_NEUTRAL						= 2'b000;
 				S_JUMP							= 2'b001;
@@ -238,8 +234,12 @@ module datapath(clock, reset, state, x, y, colour):
 				
 				GROUND_X 						= 8'd0;
 				GROUND_Y 						= 8'd119;
+				
 				PLAYER_X_START 					= 8'd20;
 				PLAYER_Y_START					= 8'd60;
+				
+				OBSTACLE_X_START				= 8'd160;	
+				OBSTACLE_Y_START				= 8'd104;
 				
 				S_CLEAR_OLD_PLAYER_POSITION		= 3'b000;
 				S_UPDATE_NEW_PLAYER_POSITION	= 3'b001;
@@ -257,46 +257,46 @@ module datapath(clock, reset, state, x, y, colour):
 			if (counter < COUNTER_MAX)
 				colour <= current_colour;
 				counter <= counter + 1'b1;
-				next_state = state; // we're not done, go back to the same state
+				next_state = screen_state; // we're not done, go back to the same state
 			else if (counter == COUNTER_MAX) // finished
 				counter <= 0; // reset the counter
 				next_state = next; // go to next
 				
 			case (state)
-				S_RESET:
-					current_x = player_x;
-					current_y = player_y;
-					
+				S_RESET:					
 					player_x = PLAYER_X_START;
 					player_y = PLAYER_Y_START;
+					
+					obstacle_x = OBSTACLE_X_START;
+					obstacle_y = OBSTACLE_Y_START;
 			
 				S_CLEAR_OLD_PLAYER_POSITION: 
-				begin
-					current_x = player_x; // set the vga to update the character's position
-					current_y = player_y;
-					current_colour = 3'b000;
-					next = S_UPDATE_NEW_PLAYER_POSITION;
-				end
+					begin
+						current_x = player_x; // set the vga to update the character's position
+						current_y = player_y;
+						current_colour = 3'b000;
+						next = S_UPDATE_NEW_PLAYER_POSITION;
+					end
 				
 				S_UPDATE_NEW_PLAYER_POSITION:
-				begin 
-					current_x = player_x;
-					current_y = player_y;
-					current_colour = 3'b100;
-					
-					if (jumping)
-						player_y = player_y + HEIGHT_DIFF; 
-					else if (falling)
-						player_y = player_y - HEIGHT_DIFF; 
+					begin 
+						current_x = player_x;
+						current_y = player_y;
+						current_colour = 3'b100;
 						
-					next = S_CLEAR_OLD_OBSTACLE_POSITION;
-				end
+						if (game_state == S_JUMP)
+							player_y = player_y + HEIGHT_DIFF; 
+						else if (game_state == S_FALL)
+							player_y = player_y - HEIGHT_DIFF; 
+							
+						next = S_CLEAR_OLD_OBSTACLE_POSITION;
+					end
 				
 				S_CLEAR_OLD_OBSTACLE_POSITION:
 					begin	
-						current_x = obstacle_x;
+						current_x = obstacle_x; // set the vga to draw the obstacle
 						current_y = obstacle_y;
-						current_colour = 3'b000;
+						current_colour = 3'b000; // black
 						next = S_UPDATE_NEW_OBSTACLE_POSITION;
 					end
 					
@@ -309,14 +309,10 @@ module datapath(clock, reset, state, x, y, colour):
 					end
 			endcase
 		end			
-				
-	
-
-
 endmodule
 
 
-module control(clock, reset, button_in, hit, state):
+module control(clock, reset, button_in, hit, state);
 	input clock;
 	input reset
 	input button_in;
@@ -324,7 +320,7 @@ module control(clock, reset, button_in, hit, state):
 
 	wire [2:0] next;
 
-	reg [7:0] frame_counter;
+	reg [4:0] frame_counter;
 
 	output reg [2:0] state;
 
@@ -353,20 +349,20 @@ module control(clock, reset, button_in, hit, state):
 
 				S_JUMP:
 					begin
-						if (frame_counter < 8'b11111111)
+						if (frame_counter < 5'b11111)
 							next = S_JUMP; // stay in jump for 64 cycles
 							frame_counter <= counter + 1;
-						else if (frame_counter == 8'b11111111)
+						else if (frame_counter == 8'b11111)
 							frame_counter <= 0;
 							next = S_FALL; // move to falling after 64 cycles
 					end
 
 				S_FALL:
 					begin
-						if (frame_counter < 8'b11111111)
+						if (frame_counter < 8'b11111)
 							next = S_FALL; // fall for 64 cycles
 							frame_counter <= counter + 1;
-						else if (frame_counter == 8'b11111111)
+						else if (frame_counter == 8'b11111)
 							frame_counter <= 0;
 							next = S_NEUTRAL; // return to the ground
 					end
@@ -385,22 +381,25 @@ module control(clock, reset, button_in, hit, state):
 endmodule
 
 
-module draw_char (enable, x, y, counter, new_x, new_y):
+module draw_char (x, y, new_x, new_y);
 	input [9:0] x;
 	input [9:0] y;
 	
-	input [] colour; // forgot the widths
-	
-	input reg [11:0] counter;
+	input reg [7:0] counter;
 
 	output reg [9:0] new_x;
 	output reg [9:0] new_y;
 	
-	if (enable)
-		new_x <= x + counter[6:0];
-		new_y <= y + counter[12:7]; // every object is the same size xd
+	new_x <= x + counter[3:0];
+	new_y <= y + counter[7:4]; // every object is the same size xd
 	
 	
 
 module check_collision (x_1, y_1, x_2, y_2, collision):
+	input [7:0] x_1, x_2, y_1, y_2;
+	output collision;
+	
+	// if the objects collide i.e. 1 box is inside of another
+	assign collision = ((x_1 + 4'b1111 >= x_2) && (y_1 + 4'b1111 < y_2) && 	) // am i retarded how do we do collisions again
+
 endmodule
