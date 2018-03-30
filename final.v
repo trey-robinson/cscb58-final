@@ -225,31 +225,43 @@ module datapath(clock, reset, state, x, y, colour);
 	
 	output reg [7:0] x;
 	output reg [7:0] y;
+	output reg [2:0] colour;
+	
+	
+	wire player_x;
+	wire player_y;
+	
+	wire obstacle_x;
+	wire obstacle_y;
+	
+	wire current_colour;
+	
+	
 
-	localparam	S_NEUTRAL						= 2'b000;
-				S_JUMP							= 2'b001;
-				S_FALL							= 2'b010;
-				S_GAMEOVER						= 2'b011;
-				S_STARTUP						= 3'b100;
+	localparam	S_NEUTRAL						= 2'b000,
+				S_JUMP							= 2'b001,
+				S_FALL							= 2'b010,
+				S_GAMEOVER						= 2'b011,
+				S_STARTUP						= 3'b100,
 				
-				GROUND_X 						= 8'd0;
-				GROUND_Y 						= 8'd119;
+				GROUND_X 						= 8'd0,
+				GROUND_Y 						= 8'd119,
 				
-				PLAYER_X_START 					= 8'd20;
-				PLAYER_Y_START					= 8'd60;
+				PLAYER_X_START 					= 8'd20,
+				PLAYER_Y_START					= 8'd60,
 				
-				OBSTACLE_X_START				= 8'd160;	
-				OBSTACLE_Y_START				= 8'd104;
+				OBSTACLE_X_START				= 8'd160,	
+				OBSTACLE_Y_START				= 8'd104,
 				
-				S_CLEAR_OLD_PLAYER_POSITION		= 3'b000;
-				S_UPDATE_NEW_PLAYER_POSITION	= 3'b001;
-				S_REDRAW_PLAYER					= 3'b010;
+				S_CLEAR_OLD_PLAYER_POSITION		= 3'b000,
+				S_UPDATE_NEW_PLAYER_POSITION	= 3'b001,
+				S_REDRAW_PLAYER					= 3'b010,
 				
-				S_CLEAR_OLD_OBSTACLE_POSITION;	= 3'b011;
-				S_UPDATE_NEW_OBSTACLE_POSITION;	= 3'b100;
-				S_REDRAW_OBSTACLE;				= 3'b101;
+				S_CLEAR_OLD_OBSTACLE_POSITION;	= 3'b011,
+				S_UPDATE_NEW_OBSTACLE_POSITION;	= 3'b100,
+				S_REDRAW_OBSTACLE;				= 3'b101,
 				
-				HEIGHT_DIFF 					= 2'd2;
+				HEIGHT_DIFF 					= 2'd2,
 				COUNTER_MAX						= 12'b111111111111;
 				
 	always @(clock)
@@ -314,7 +326,7 @@ endmodule
 
 module control(clock, reset, button_in, hit, state);
 	input clock;
-	input reset
+	input reset;
 	input button_in;
 	input hit;
 
@@ -333,7 +345,7 @@ module control(clock, reset, button_in, hit, state);
 	// state table
 
 	always @(clock)
-		begin:
+		begin
 			case (state)
 				S_STARTUP: next = S_NEUTRAL;
 			
@@ -349,22 +361,24 @@ module control(clock, reset, button_in, hit, state);
 
 				S_JUMP:
 					begin
-						if (frame_counter < 5'b11111)
+						if (frame_counter < 8'b11111111) begin
 							next = S_JUMP; // stay in jump for 64 cycles
 							frame_counter <= counter + 1;
-						else if (frame_counter == 8'b11111)
+						end else if (frame_counter == 8'b11111111) begin
 							frame_counter <= 0;
 							next = S_FALL; // move to falling after 64 cycles
+						end
 					end
 
 				S_FALL:
 					begin
-						if (frame_counter < 8'b11111)
+						if (frame_counter < 8'b11111111) begin
 							next = S_FALL; // fall for 64 cycles
 							frame_counter <= counter + 1;
-						else if (frame_counter == 8'b11111)
+						end else if (frame_counter == 8'b11111111) begin
 							frame_counter <= 0;
 							next = S_NEUTRAL; // return to the ground
+						end
 					end
 
 				default: next = S_STARTUP;	
@@ -380,12 +394,21 @@ module control(clock, reset, button_in, hit, state);
 		end
 endmodule
 
+	always @(clock)
+		begin
+			if (reset)
+				state = S_STARTUP; // jump back to the beginning
+			else
+				state = next; // go to the next state
+		end
+endmodule
+
 
 module draw_char (x, y, new_x, new_y);
 	input [9:0] x;
 	input [9:0] y;
 	
-	input reg [7:0] counter;
+	input [7:0] counter;
 
 	output reg [9:0] new_x;
 	output reg [9:0] new_y;
@@ -400,6 +423,6 @@ module check_collision (x_1, y_1, x_2, y_2, collision):
 	output collision;
 	
 	// if the objects collide i.e. 1 box is inside of another
-	assign collision = ((x_1 + 4'b1111 >= x_2) && (y_1 + 4'b1111 < y_2) && 	) // am i retarded how do we do collisions again
+	assign collision = ((y_1 > y_2 - 8'd16) && (y_1 < y_2 + 8'd16) && (x_1 >= x_2) && (x_1 <= x_2 + 8'd16)) 
 
 endmodule
