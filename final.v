@@ -6,14 +6,18 @@ module final(CLOCK_50,
 						VGA_CLK,   						//	VGA Clock
 						VGA_HS,							//	VGA H_SYNC
 						VGA_VS,							//	VGA V_SYNC
-						VGA_BLANK_N,						//	VGA BLANK
+						VGA_BLANK_N,					//	VGA BLANK
 						VGA_SYNC_N,						//	VGA SYNC
 						VGA_R,   						//	VGA Red[9:0]
 						VGA_G,	 						//	VGA Green[9:0]
 						VGA_B);   						//	VGA Blue[9:0]);
 	
 	input CLOCK_50;
-	input KEY;
+	input [1:0] KEY;
+	wire reset;
+	
+	reg [2:0] state;
+	assign state = 3b'101;
 	
 	output			VGA_CLK;   				//	VGA Clock
 	output			VGA_HS;					//	VGA H_SYNC
@@ -24,16 +28,22 @@ module final(CLOCK_50,
 	output	[9:0]	VGA_G;	 				//	VGA Green[9:0]
 	output	[9:0]	VGA_B;   				//	VGA Blue[9:0]
 	
+	// Create the colour, x, y and writeEn wires that are inputs to the controller.
+	wire [2:0] colour;
+	wire [7:0] x;
+	wire [6:0] y;
+	wire writeEn;
+	
 	// Create an Instance of a VGA controller - there can be only one!
 	// Define the number of colours as well as the initial background
 	// image file (.MIF) for the controller.
 	vga_adapter VGA(
-			.resetn(resetn),
+			.resetn(1'b1),
 			.clock(CLOCK_50),
 			.colour(colour),
 			.x(x),
 			.y(y),
-			.plot(writeEn),
+			.plot(1'b1),
 			/* Signals for the DAC to drive the monitor. */
 			.VGA_R(VGA_R),
 			.VGA_G(VGA_G),
@@ -50,13 +60,29 @@ module final(CLOCK_50,
 
 	
 	datapath(
-	);
+				.clock(CLOCK_50),
+				.reset(reset),
+				.state(state),
+				.x(x),
+				.y(y),
+				.colour(colour)
+				);
 	
 	control (
-	);
+				.clock(),
+				.reset(),
+				.button_in(),
+				.hit(),
+				.state()
+				);
 	
-	check_collision (
-	);
+	check_collision(
+						.x_1(),
+						.y_1(),
+						.x_2(),
+						.y_2(),
+						.collision()
+						);
 	
 endmodule
 
@@ -167,10 +193,7 @@ module datapath(clock, reset, state, x, y, colour);
 						next = S_CLEAR_OLD_PLAYER_POSITION;
 					end
 			endcase
-		end			
-				
-	
-
+		end
 
 endmodule
 
