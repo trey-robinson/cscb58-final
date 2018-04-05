@@ -99,8 +99,8 @@ module control(clock, reset, button_in, hit, jump, fall);
 	
 	always @(*)
 		begin
-			case (current_state)	
-				S_NEUTRAL: begin
+			if (current_state == S_NEUTRAL)	
+				begin
 					if (button_in && ~hit)
 						next_state = S_JUMP;
 					else if (~hit)
@@ -109,16 +109,21 @@ module control(clock, reset, button_in, hit, jump, fall);
 						next_state = S_NEUTRAL;
 				end
 				
-				S_JUMP: begin
+			else if (current_state == S_JUMP): 
+				begin
 					next_state = S_FALL;
 				end
 				
-				S_FALL: begin
+			else if (current_state == S_FALL): 
+				begin
 					next_state = S_NEUTRAL;
 				end
 				
-				default: next_state = S_NEUTRAL;
-			endcase
+			else 
+				begin
+					next_state = S_NEUTRAL;
+				end
+			end
 		end
 		
 	// drive the output 
@@ -130,17 +135,14 @@ module control(clock, reset, button_in, hit, jump, fall);
 			case (current_state)
 				S_JUMP: jump = 1'b1;
 				S_FALL: fall = 1'b1;
-				
+		
+	// go to next state
 	always @(*)
 		begin
 			if (reset)
 				current_state = S_NEUTRAL;
 			else
-				current_state = next_state;
-	
-
-	
-	
+				current_state = next_state;	
 
 endmodule
 
@@ -170,8 +172,10 @@ module datapath(clock, reset, state, x, y);
 	localparam  S_JUMP = 3'b001;
 				S_FALL = 3'b010;
 				
-				PLAYER_X_START = 8'd20;
-				PLAYER_Y_START = 8'd60;
+				PLAYER_X_START 			= 8'd20;
+				PLAYER_Y_START 			= 8'd60;
+				OBSTACLE_X_START		= 8'd120;
+				OBSTACLE_Y_START		= 8'd152;
 				
 				S_CLEAR_OLD_PLAYER_POSITION		= 3'b000,
 				S_UPDATE_NEW_PLAYER_POSITION	= 3'b001,
@@ -183,15 +187,52 @@ module datapath(clock, reset, state, x, y);
 				
 				HEIGHT_DIFF 					= 2'd2,
 				
+	
+	draw_obj(
+	.x(current_x),
+	.y(current_y),
+	.counter(counter),
+	.new_x(x),
+	.new_y(y)
+	);
+		
+				
 	always @(*)
 		begin
-			
-				
+			if (current_state == S_RESET)
+				begin
+					current_x = player_x;
+					current_y = player_y;
+					player_x = PLAYER_X_START;
+					player_y = PLAYER_Y_START;
+					obstacle_x = OBSTACLE_X;
+					obstacle_y = OBSTACLE_Y;
+					next_state = CLEAR_OLD_PLAYER_POSITION;
+				end
+			else if (current_state == CLEAR_OLD_PLAYER_POSITION)
+				begin
+					current_x = player_x;
+					current_y = player_y;
+					
+					
 				
 endmodule
 
 module handle_collision();
 endmodule
 
-module draw_object();
+module draw_obj (x, y, counter, new_x, new_y);
+	input [9:0] x;
+	input [9:0] y;
+	
+	input [11:0] counter;
+
+	output [9:0] new_x;
+	output [9:0] new_y;
+	
+	always @(*)
+	begin
+		new_x <= x + counter[6:0];
+		new_y <= y + counter[11:7]; // every object is the same size 
+	end
 endmodule
