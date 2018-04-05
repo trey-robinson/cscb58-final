@@ -194,7 +194,6 @@ module datapath(clock, reset, state, x, y, colour);
 					end
 			endcase
 		end
-
 endmodule
 
 
@@ -219,7 +218,7 @@ module control(clock, reset, button_in, hit, state);
 	
 	// state table
 
-	always @(clock)
+always @(clock)
 		begin
 			case (state)
 				S_STARTUP: next = S_NEUTRAL;
@@ -269,12 +268,21 @@ module control(clock, reset, button_in, hit, state);
 		end
 endmodule
 
+	always @(clock)
+		begin
+			if (reset)
+				state = S_STARTUP; // jump back to the beginning
+			else
+				state = next; // go to the next state
+		end
+endmodule
+
 
 module draw_char (enable, x, y, counter, new_x, new_y, colour);
 	input [9:0] x;
 	input [9:0] y;
 	input enable;
-	
+
 	input [2:0] colour; // forgot the widths
 	
 	input [11:0] counter;
@@ -299,5 +307,7 @@ module check_collision (x_1, y_1, x_2, y_2, collision);
 	
 	output collision;
 	
-	assign collision = (x_1 == x_2) && (y_1 == y_2);
+	// if the objects collide i.e. 1 box is inside of another
+	assign collision = ((y_1 > y_2 - 8'd16) && (y_1 < y_2 + 8'd16) && (x_1 >= x_2) && (x_1 <= x_2 + 8'd16)) 
+
 endmodule
