@@ -17,7 +17,6 @@ module final(CLOCK_50,
 	wire reset;
 	
 	reg [2:0] state;
-	assign state = 3b'101;
 	
 	output			VGA_CLK;   				//	VGA Clock
 	output			VGA_HS;					//	VGA H_SYNC
@@ -138,17 +137,20 @@ module datapath(clock, reset, state, x, y, colour, hit);
 					.collision(hit)
 	);
 				
-	always @(clock)
+	always @(*)
 		begin
 			if (counter < COUNTER_MAX) begin
-				colour <= current_colour;
-				counter <= counter + 1'b1;
+				colour = current_colour;
+				counter = counter + 1'b1;
 				next_state = state; // we're not done, go back to the same state
-			end else if (counter == COUNTER_MAX) begin // finished
-				counter <= 0; // reset the counter
+			end else begin // finished
+				counter = 0; // reset the counter
 				next_state = next; // go to next
 			end
+	end			
 			
+	always @(*)
+		begin
 			case (game_state)
 				S_RESET: begin
 					current_x = player_x;
@@ -174,7 +176,8 @@ module datapath(clock, reset, state, x, y, colour, hit);
 						player_y = player_y + HEIGHT_DIFF; 
 					end else if (state == S_FALL) begin
 						player_y = player_y - HEIGHT_DIFF; 
-					end
+					end else 
+						player_y = player_y;
 					next = S_CLEAR_OLD_OBSTACLE_POSITION;
 				end
 				
@@ -201,9 +204,9 @@ module datapath(clock, reset, state, x, y, colour, hit);
 		always @(clock)
 		begin
 			if (reset)
-				game_state = S_RESET; // jump back to the beginning
+				game_state <= S_RESET; // jump back to the beginning
 			else
-				game_state = next; // go to the next state
+				game_state <= next; // go to the next state
 		end
 
 endmodule
@@ -232,7 +235,7 @@ module control(clock, reset, button_in, hit, state);
 	
 	// state table
 
-	always @(clock)
+	always @(*)
 		begin
 			case (state)
 				S_STARTUP: next = S_NEUTRAL;
@@ -251,9 +254,9 @@ module control(clock, reset, button_in, hit, state);
 					begin
 						if (frame_counter < 8'b11111111) begin
 							next = S_JUMP; // stay in jump for 64 cycles
-							frame_counter <= counter + 1;
-						end else if (frame_counter == 8'b11111111) begin
-							frame_counter <= 0;
+							frame_counter = counter + 1;
+						end else begin
+							frame_counter = 0;
 							next = S_FALL; // move to falling after 64 cycles
 						end
 					end
@@ -262,9 +265,9 @@ module control(clock, reset, button_in, hit, state);
 					begin
 						if (frame_counter < 8'b11111111) begin
 							next = S_FALL; // fall for 64 cycles
-							frame_counter <= counter + 1;
-						end else if (frame_counter == 8'b11111111) begin
-							frame_counter <= 0;
+							frame_counter = counter + 1;
+						end else begin
+							frame_counter = 0;
 							next = S_NEUTRAL; // return to the ground
 						end
 					end
@@ -276,9 +279,9 @@ module control(clock, reset, button_in, hit, state);
 	always @(clock)
 		begin
 			if (reset)
-				state = S_STARTUP; // jump back to the beginning
+				state <= S_STARTUP; // jump back to the beginning
 			else
-				state = next; // go to the next state
+				state <= next; // go to the next state
 		end
 endmodule
 
